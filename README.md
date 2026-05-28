@@ -6,20 +6,20 @@ A REST API for Eagle Bank which conforms to this OpenAPI specification which all
 
 folder
 
-\api
-- main.go -> entry point for the api
-
-\models
--- \user
-    -- struct for user CRUD operations
--- \account
-    -- struct for account CRUD operations
--- \transaction
-    -- struct for transaction CRUD operations
-
-\pkg
--- \jwt
-    -- code for creating and checking the jwt token
+\api<br />
+- main.go -> entry point for the api<br />
+<br />
+\models<br />
+-- \user<br />
+    -- struct for user CRUD operations<br />
+-- \account<br />
+    -- struct for account CRUD operations<br />
+-- \transaction<br />
+    -- struct for transaction CRUD operations<br />
+<br />
+\pkg<br />
+-- \jwt<br />
+    -- code for creating and checking the jwt token<br />
 
 ## Running the application
 
