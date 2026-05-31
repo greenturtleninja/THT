@@ -7,5 +7,7 @@ CREATE TABLE addresses (
   town varchar(255),
   county varchar(255),
   postcode varchar(10) NOT NULL,
-  status varchar(8) CHECK (status IN ('active', 'deleted')) NOT NULL DEFAULT 'active'
+  status status_type NOT NULL DEFAULT 'active'
 );
+
+GRANT ALL PRIVILEGES ON TABLE addresses TO eagle_bank;

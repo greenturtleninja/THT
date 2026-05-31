@@ -1,0 +1,10 @@
+CREATE DATABASE eagle_bank
+WITH
+   OWNER =  eagle_bank;
+
+CREATE TYPE status_type AS ENUM ('active', 'deleted');
+
+CREATE TYPE currency_type AS ENUM ('GBP', 'EUR', 'USD');
+
+CREATE TYPE account_type AS ENUM ('personal', 'business');
+

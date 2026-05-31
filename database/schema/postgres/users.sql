@@ -5,5 +5,7 @@ CREATE TABLE users (
   phoneNumber varchar(15) DEFAULT '',
   createdTimestamp TEXT DEFAULT current_timestamp,
   updatedTimestamp TEXT,
-  status varchar(8) CHECK (status IN ('active', 'deleted')) NOT NULL DEFAULT 'active'
+  status status_type NOT NULL DEFAULT 'active'
 );
+
+GRANT ALL PRIVILEGES ON TABLE users TO eagle_bank;

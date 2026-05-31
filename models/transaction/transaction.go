@@ -40,7 +40,7 @@ var GetTransactionsSQL = `SELECT
 FROM transactions txn
 INNER JOIN users_accounts USING (userID)
 INNER JOIN accounts acc USING (accountID)
-WHERE acc.accountNumber = ? AND acc.sortCode = ?`
+WHERE acc.accountNumber = $1 AND acc.sortCode = $2`
 
 func (txns *Transactions) GetTransactions(db *sql.DB) error {
 	rows, err := db.Query(GetTransactionsSQL, txns.AccountNumber, txns.SortCode)
@@ -77,7 +77,7 @@ func (txns *Transactions) GetTransactions(db *sql.DB) error {
 }
 
 var CreateTransactionSQL = `INSERT INTO transactions (transactionID, amount, currency, type, reference, userID)
-VALUES (?, ?, ?, ?, ?, ?)`
+VALUES ($1, $2, $3, $4, $5, $6)`
 
 // CreateTransaction
 // checks if the passed account id is valid.

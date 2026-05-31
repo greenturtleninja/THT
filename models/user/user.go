@@ -45,11 +45,11 @@ type UserHandler interface {
 
 var GetUserQuery = `
 	SELECT 
-		user.userId, user.name, user.phoneNumber, user.email, user.createdTimestamp, user.updatedTimestamp,
+		usr.userId, usr.name, usr.phoneNumber, usr.email, usr.createdTimestamp, usr.updatedTimestamp,
 		address.line1, address.line2, address.line3, address.town, address.county, address.postcode
-	FROM users user
+	FROM users usr
 	LEFT JOIN addresses address USING (userId)
-	WHERE user.userId = ?`
+	WHERE usr.userId = $1`
 
 func (user *User) GetUser(db *sql.DB) error {
 	err := db.QueryRow(GetUserQuery, user.UserID).Scan(
@@ -70,7 +70,7 @@ func (user *User) GetUser(db *sql.DB) error {
 	return err
 }
 
-var LinkUserToAccountSQL = `INSERT INTO users_accounts (userID, accountID) VALUES (?, ?)`
+var LinkUserToAccountSQL = `INSERT INTO users_accounts (userID, accountID) VALUES ($1, $2)`
 
 func (usrToAcc *UsersToAccounts) LinkUserToAccount(db *sql.DB) error {
 	_, err := db.Exec(
@@ -87,10 +87,10 @@ func (user *User) UpdateUser() error {
 }
 
 var CreateUserSQL = `INSERT INTO users (userID, name, email, phoneNumber, createdTimestamp, updatedTimestamp, status) 
-VALUES (?, ?, ?, ?, ?, ?, ?)`
+VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
 var CreateAddressSQL = `INSERT INTO addresses (addressID, userID, line1, line2, line3, town, county, postcode, status)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
 func (user *User) CreateUser(db *sql.DB) error {
 	currentTime := time.Now().UTC().Format("2006-01-02 15:04:05")

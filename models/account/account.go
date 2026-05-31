@@ -107,7 +107,7 @@ func generateSortCode() string {
 
 var CreateAccountSQL = `INSERT INTO accounts 
 (accountNumber, sortCode, name, accountType, currency, status, accountID, updatedTimestamp) VALUES 
-(?, ?, ?, ?, ?, ?, ?, ?)`
+($1, $2, $3, $4, $5, $6, $7, $8)`
 
 func (acc *Account) CreateAccount(db *sql.DB) error {
 	uniqueID := uuidv7.New()
@@ -160,7 +160,7 @@ func (acc *Account) CreateAccount(db *sql.DB) error {
 var AccountExitsSQL = `SELECT acc.accountID, usr_acc.userID, accountNumber, COALESCE(createdTimestamp, ''), COALESCE(updatedTimestamp, '') 
 FROM accounts acc 
 INNER JOIN users_accounts usr_acc USING (accountID)
-WHERE accountNumber = ? AND sortCode = ?`
+WHERE accountNumber = $1 AND sortCode = $2`
 
 func IsValidAccount(db *sql.DB, accountNumber, sortCode string) (ValidAccount, error) {
 	var validAccount ValidAccount

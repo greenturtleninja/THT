@@ -4,3 +4,5 @@ CREATE TABLE users_accounts (
   FOREIGN KEY(accountID) REFERENCES accounts(accountID),
   FOREIGN KEY(userID) REFERENCES users(userID)
 );
+
+GRANT ALL PRIVILEGES ON TABLE users_accounts TO eagle_bank;

@@ -12,7 +12,14 @@ import (
 	"THT/eaglebank/models/transaction"
 	"THT/eaglebank/models/user"
 
-	_ "github.com/glebarez/go-sqlite"
+	_ "github.com/lib/pq"
+)
+
+const (
+	host   = "localhost"
+	port   = 5432
+	dbuser = "eagle_bank"
+	dbname = "eagle_bank"
 )
 
 type errorMessage struct {
@@ -252,13 +259,26 @@ func main() {
 
 	var err error
 
-	// Connect to the SQLite database
-	db, err = sql.Open("sqlite", "./eagle_bank.db")
+	dbPassword := os.Getenv("DBPASSWORD")
+	if dbPassword == "" {
+		myslog.Error("error connecting to db: no password provided")
+		return
+	}
+
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		host, port, dbuser, dbPassword, dbname)
+
+	// Connect to the PostgreSQL database
+	db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
 		myslog.Error(fmt.Sprintf("error connecting to db: %s", err.Error()))
+		return
 	}
 
 	defer db.Close()
+
+	myslog.Info("successfully connected to db")
 
 	// API calls
 	http.HandleFunc("GET /v1/dbcheck", sqlLiteVersion)
