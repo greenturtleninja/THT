@@ -1,7 +1,7 @@
 package transaction
 
 import (
-	"THT/eaglebank/models/account"
+	accountModel "THT/eaglebank/models/account"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -83,7 +83,7 @@ VALUES ($1, $2, $3, $4, $5, $6)`
 // checks if the passed account id is valid.
 // Inserts the transaction details into the database
 func (txn *Transaction) CreateTransaction(db *sql.DB) error {
-	validAccount, err := account.IsValidAccount(db, txn.AccountNumber, txn.SortCode)
+	validAccount, err := accountModel.IsValidAccount(db, txn.AccountNumber, txn.SortCode)
 	if err != nil {
 		return err
 	}

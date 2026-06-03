@@ -8,9 +8,14 @@ import (
 	"net/http"
 	"os"
 
-	"THT/eaglebank/models/account"
-	"THT/eaglebank/models/transaction"
-	"THT/eaglebank/models/user"
+	authJwt "THT/eaglebank/auth/JWT"
+	UserController "THT/eaglebank/controllers/User"
+
+	"github.com/golang-jwt/jwt/v5"
+	echojwt "github.com/labstack/echo-jwt/v4"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/samborkent/uuidv7"
 
 	_ "github.com/lib/pq"
 )
@@ -36,209 +41,42 @@ type ErrorDetail struct {
 var myslog *slog.Logger
 var db *sql.DB
 
-func hello(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(w, "hello\n")
+func dbVersion(req echo.Context) error {
+	var timeNow string
+	err := db.QueryRow("SELECT now()").Scan(&timeNow)
+	if err != nil {
+		myslog.Error("error getting database version", "err", err)
+		return echo.ErrInternalServerError
+	}
+
+	return req.JSON(http.StatusOK, echo.Map{
+		"version": timeNow,
+	})
 }
 
-func sqlLiteVersion(w http.ResponseWriter, req *http.Request) {
-	var sqliteVersion string
-	err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1").Scan(&sqliteVersion)
-	if err != nil {
-		fmt.Println(err)
-	}
+func newUserId(req echo.Context) error {
+	uniqueID := uuidv7.New()
+	usrUUID := uniqueID.String()
+	usrID := fmt.Sprintf("usr-%s", usrUUID)
 
-	fmt.Fprintf(w, "%s", sqliteVersion)
+	return req.JSON(http.StatusOK, echo.Map{
+		"user-id": usrID,
+	})
 }
 
-func getUserHandler(w http.ResponseWriter, req *http.Request) {
-	userID := req.PathValue("userId")
-
-	user := user.User{
-		UserID: userID,
+func passwordHash(req echo.Context) error {
+	password := req.QueryParam("password")
+	if password == "" {
+		return req.JSON(http.StatusBadRequest, echo.Map{
+			"error": "password query parameter is required",
+		})
 	}
 
-	if err := user.GetUser(db); err != nil {
-		myslog.Error("error getting user", "err", err)
+	passHash := authJwt.PasswordHash(password)
 
-		fmt.Fprintf(w, "")
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, "%s", user.Response())
-}
-
-func createUserHandler(w http.ResponseWriter, req *http.Request) {
-	user := user.User{}
-	err := json.NewDecoder(req.Body).Decode(&user)
-	if err != nil {
-		myslog.Error("error with decoding user body", "err", err)
-		errorMsg := errorMessage{
-			Message: "invalid user details",
-			Details: []ErrorDetail{
-				{
-					Field:   "userBody",
-					Message: "invalid body",
-					Type:    "string",
-				},
-			},
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "%s", errorResponse(errorMsg))
-		return
-	}
-
-	err = user.CreateUser(db)
-	if err != nil {
-		myslog.Error("error with decoding user body", "err", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		errorMsg := errorMessage{
-			Message: "error creating user",
-		}
-		fmt.Fprintf(w, "%s", errorResponse(errorMsg))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, "%s", user.Response())
-}
-
-func linkUsersToAccount(w http.ResponseWriter, req *http.Request) {
-	usersToAccounts := user.UsersToAccounts{}
-	err := json.NewDecoder(req.Body).Decode(&usersToAccounts)
-	if err != nil {
-		myslog.Error("error with decoding user account link", "err", err)
-		errorMsg := errorMessage{
-			Message: "invalid user-account details",
-			Details: []ErrorDetail{
-				{
-					Field:   "user-accountBody",
-					Message: "invalid body",
-					Type:    "string",
-				},
-			},
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "%s", errorResponse(errorMsg))
-		return
-	}
-
-	err = usersToAccounts.LinkUserToAccount(db)
-	if err != nil {
-		myslog.Error("error with decoding user body", "err", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		errorMsg := errorMessage{
-			Message: "error creating user",
-		}
-		fmt.Fprintf(w, "%s", errorResponse(errorMsg))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, "%s", "{\"status\": \"OK\"}")
-
-}
-
-func getAccountsHandler(w http.ResponseWriter, req *http.Request) {
-	accounts, err := account.GetAccounts(db)
-	if err != nil {
-		myslog.Error("error getting account", "err", err)
-
-		fmt.Fprintf(w, "")
-	}
-
-	resp, _ := json.Marshal(accounts)
-	w.Header().Set("Content-Type", "application/json")
-
-	fmt.Fprintf(w, "%s", resp)
-}
-
-func createAccountsHandler(w http.ResponseWriter, req *http.Request) {
-	account := account.Account{}
-	err := json.NewDecoder(req.Body).Decode(&account)
-	if err != nil {
-		myslog.Error("error with decoding account body", "err", err)
-		errorMsg := errorMessage{
-			Message: "invalid account details",
-			Details: []ErrorDetail{
-				{
-					Field:   "accountBody",
-					Message: "invalid body",
-					Type:    "string",
-				},
-			},
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "%s", errorResponse(errorMsg))
-		return
-	}
-
-	err = account.CreateAccount(db)
-	if err != nil {
-		myslog.Error("error with decoding account body", "err", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		errorMsg := errorMessage{
-			Message: "error creating account",
-		}
-		fmt.Fprintf(w, "%s", errorResponse(errorMsg))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, "%s", account.Response())
-}
-
-func getTransactionsHandler(w http.ResponseWriter, req *http.Request) {
-	accountNumber := req.PathValue("accountNumber")
-
-	txn := transaction.Transactions{
-		AccountNumber: accountNumber,
-		SortCode:      transaction.DefaultSortCode,
-	}
-
-	if err := txn.GetTransactions(db); err != nil {
-		myslog.Error("error getting transactions", "err", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "")
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	resp, _ := json.Marshal(txn)
-	fmt.Fprintf(w, "%s", resp)
-}
-
-func createTransactionHandler(w http.ResponseWriter, req *http.Request) {
-	transaction := transaction.Transaction{
-		AccountNumber: req.PathValue("accountNumber"),
-		SortCode:      transaction.DefaultSortCode,
-	}
-	err := json.NewDecoder(req.Body).Decode(&transaction)
-	if err != nil {
-		myslog.Error("error with decoding transaction body", "err", err)
-		errorMsg := errorMessage{
-			Message: "invalid account details",
-			Details: []ErrorDetail{
-				{
-					Field:   "transactionBody",
-					Message: "invalid body",
-					Type:    "string",
-				},
-			},
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "%s", errorResponse(errorMsg))
-		return
-	}
-
-	err = transaction.CreateTransaction(db)
-	if err != nil {
-		myslog.Error("error with creating transaction", "err", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		errorMsg := errorMessage{
-			Message: "error creating transaction",
-		}
-		fmt.Fprintf(w, "%s", errorResponse(errorMsg))
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, "%s", transaction.Response())
-
+	return req.JSON(http.StatusOK, echo.Map{
+		"hash": passHash,
+	})
 }
 
 func errorResponse(errorMessage errorMessage) string {
@@ -251,9 +89,8 @@ func errorResponse(errorMessage errorMessage) string {
 	return string(message)
 }
 
-func main() {
-	// auth JWT here
-
+func init() {
+	authJwt.Init()
 	jsonHandler := slog.NewJSONHandler(os.Stderr, nil)
 	myslog = slog.New(jsonHandler)
 
@@ -276,30 +113,71 @@ func main() {
 		return
 	}
 
-	defer db.Close()
-
 	myslog.Info("successfully connected to db")
+}
 
-	// API calls
-	http.HandleFunc("GET /v1/dbcheck", sqlLiteVersion)
-	http.HandleFunc("GET /v1/accounts/{accountNumber}", hello)
-	// todo
-	http.HandleFunc("PATCH /v1/accounts/{accountNumber}", hello)
-	http.HandleFunc("DELETE /v1/accounts/{accountNumber}", hello)
-	http.HandleFunc("DELETE /v1/users/{userId}", hello)
-	http.HandleFunc("GET /v1/accounts/{accountNumber}/transactions/{transactionId}", hello)
+func loginRoute(parent *echo.Group, db *sql.DB) {
+	u := authJwt.LoginRequest{
+		DB: db,
+	}
 
-	// working
-	http.HandleFunc("GET /v1/accounts", getAccountsHandler)
-	http.HandleFunc("POST /v1/accounts", createAccountsHandler)
+	// register all routes on controller
+	parent.POST("/", u.Login)
+}
 
-	http.HandleFunc("POST /v1/accounts/{accountNumber}/transactions", createTransactionHandler)
-	http.HandleFunc("GET /v1/accounts/{accountNumber}/transactions", getTransactionsHandler)
+func registerApiRoutes(parent *echo.Group, db *sql.DB) {
+	parent.GET("/users/:userId", func(c echo.Context) error {
+		user := UserController.User{
+			DB:     db,
+			UserID: c.Param("userId"),
+		}
+		return user.GetUser(c)
+	})
 
-	http.HandleFunc("POST /v1/users/{userId}/accounts/{accountId}", linkUsersToAccount)
+	parent.POST("/users", func(c echo.Context) error {
+		user := UserController.User{
+			DB: db,
+		}
 
-	http.HandleFunc("GET /v1/users/{userId}", getUserHandler)
-	http.HandleFunc("POST /v1/users", createUserHandler)
+		return user.CreateUser(c)
+	})
 
-	http.ListenAndServe(":8090", nil)
+	parent.POST("/accounts", func(c echo.Context) error {
+		return nil
+	})
+}
+
+func tools(parent *echo.Group) {
+	parent.GET("/dbversion", dbVersion)
+	parent.GET("/userID", newUserId)
+	parent.GET("/passwordHash", passwordHash)
+}
+
+func main() {
+	e := echo.New()
+	e.Use(middleware.RequestLogger())
+
+	toolsGroup := e.Group("/tools")
+	tools(toolsGroup)
+
+	login := e.Group("/login")
+	loginRoute(login, db)
+
+	config := echojwt.Config{
+		NewClaimsFunc: func(c echo.Context) jwt.Claims {
+			return new(authJwt.JwtCustomClaims)
+		},
+		SigningKey:    authJwt.RsaPublicKey,
+		SigningMethod: authJwt.SignatureMethod.Name,
+	}
+
+	api := e.Group("/v1")
+	api.Use(echojwt.WithConfig(config))
+	registerApiRoutes(api, db)
+
+	if err := e.Start("127.0.0.1:8090"); err != nil {
+		myslog.Error(fmt.Sprintf("error starting server: %s", err.Error()))
+	}
+
+	defer db.Close()
 }

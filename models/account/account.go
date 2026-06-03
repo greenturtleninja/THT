@@ -1,4 +1,4 @@
-package account
+package accountModel
 
 import (
 	"database/sql"
@@ -25,6 +25,7 @@ type Account struct {
 	CreatedTimestamp string  `json:"createdTimestamp"`
 	UpdatedTimestamp string  `json:"updatedTimestamp"`
 	Status           string  `json:"-"`
+	UserID           string  `json:"-"`
 }
 
 type ValidAccount struct {
@@ -36,9 +37,49 @@ type ValidAccount struct {
 }
 
 type AccountsHandler interface {
+	GetAccount(db *sql.DB) error
 	GetAccounts(db *sql.DB) error
 	CreateAccount(db *sql.DB) error
 	Response() string
+}
+
+var GetAccountByUserIdQuery = `
+	SELECT acc.name, acc.accountNumber, acc.sortCode, acc.accountType, acc.balance, acc.currency,
+  		acc.createdTimestamp, acc.updatedTimestamp, COALESCE(SUM(txn.amount), 0) as txnBalance
+	FROM accounts acc
+	LEFT JOIN users_accounts usr USING (accountID)
+	LEFT JOIN transactions txn USING (userID)
+	WHERE txn.createdTimestamp IS NULL OR txn.createdTimestamp > date() AND usr.userID = $1
+	GROUP BY acc.accountID, acc.name, acc.accountNumber, acc.sortCode, acc.accountType, acc.balance, acc.currency,
+  		acc.createdTimestamp, acc.updatedTimestamp, acc.status
+`
+
+func (a *Account) GetAccountByUserId(db *sql.DB) error {
+	row := db.QueryRow(GetAccountByUserIdQuery, a.UserID)
+
+	var currentBalance int64
+	var txnBalance int64
+	if err := row.Scan(
+		&a.Name,
+		&a.AccountNumber,
+		&a.SortCode,
+		&a.AccountType,
+		&currentBalance,
+		&a.Currency,
+		&a.CreatedTimestamp,
+		&a.UpdatedTimestamp,
+		&txnBalance,
+	); err != nil {
+		return err
+	}
+
+	totalBalance := float64(currentBalance + txnBalance)
+	if totalBalance > 0 {
+		totalBalance = float64(totalBalance / 100)
+	}
+	a.Balance = totalBalance
+
+	return nil
 }
 
 // sum todays transactions and return this as the balance for the account

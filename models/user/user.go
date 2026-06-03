@@ -1,4 +1,4 @@
-package user
+package userModel
 
 import (
 	"database/sql"
@@ -97,9 +97,6 @@ func (user *User) CreateUser(db *sql.DB) error {
 	user.UpdatedTimestamp = currentTime
 	user.CreatedTimestamp = currentTime
 
-	uniqueID := uuidv7.New()
-	userUUID := uniqueID.String()
-	user.UserID = fmt.Sprintf("usr-%s", userUUID)
 	user.Status = "active"
 
 	_, err := db.Exec(
@@ -116,7 +113,7 @@ func (user *User) CreateUser(db *sql.DB) error {
 		return err
 	}
 
-	uniqueID = uuidv7.New()
+	uniqueID := uuidv7.New()
 	addUUID := uniqueID.Short()
 	addressId := fmt.Sprintf("usr-%s", addUUID)
 

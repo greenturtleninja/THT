@@ -17,36 +17,32 @@ folder
 -- \transaction<br />
     -- struct for transaction CRUD operations<br />
 <br />
-\pkg<br />
--- \jwt<br />
+\auth<br />
+-- \JWT<br />
     -- code for creating and checking the jwt token<br />
 
 ## Running the application
 
-First run and install sqlite 3 - instructions below
+### Create a new token
 
+Token keys with rsa using certs dir
+```
+> cd certs
+> openssl genrsa -out priv_key.pem 2048
+> openssl rsa -pubout -in priv_key.pem -out pub_key.pem
+
+```
+
+### run the application
 ```
 go run api/main.go
 ```
-This should start the server. Sqlite3 doesn't need to be running just needs to be setup
+This should start the server.
 
 
-## SQLite3
+## Postgres
 
-Install sqlite3 as per instructions - https://sqlite.org/
-
-From the root directory run the below from the command line
-
-```
->sqlite3 eagle_bank.db
-sqlite>.database
-sqlite>.read database\schema\accounts.sql
-... repeat for all the schemas
-sqlite>.quit
-
-Also the below is very helpful for listing specific sqlite commands
-sqlite>.help 
-```
+Install postgress and update the postgres database with the table schemas in database folder
 
 ## TODO
 
