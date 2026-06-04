@@ -216,12 +216,20 @@ func TestCreateAccount(t *testing.T) {
 		return
 	}
 
-	checkColumns := []string{"acc.accountID", "usr_acc.userID", "accountNumber", "COALESCE(createdTimestamp, '')", "COALESCE(updatedTimestamp, '')"}
-	accountColumns := []string{"accountNumber", "sortCode", "name", "accountType", "currency", "status", "accountID", "updatedTimestamp"}
-	LinkColumns := []string{"userID", "accountID"}
-
 	req := httptest.NewRequest("GET", "http://example.com/foo", nil)
 	w := httptest.NewRecorder()
+
+	respAccount := accountModel.Account{
+		Name:             "Test Account",
+		AccountNumber:    "12345678",
+		SortCode:         "10-10-10",
+		AccountType:      "personal",
+		Balance:          0.00,
+		Currency:         "GBP",
+		CreatedTimestamp: "2024-01-01T00:00:00Z",
+		UpdatedTimestamp: "2024-01-01T00:00:00Z",
+		UserID:           "test-user-id",
+	}
 
 	testCases := []struct {
 		testname           string
@@ -240,19 +248,9 @@ func TestCreateAccount(t *testing.T) {
 				Type:        "personal",
 				DB:          db,
 			},
-			request:  req,
-			response: w,
-			respAccount: accountModel.Account{
-				Name:             "Test Account",
-				AccountNumber:    "12345678",
-				SortCode:         "10-10-10",
-				AccountType:      "personal",
-				Balance:          0.00,
-				Currency:         "GBP",
-				CreatedTimestamp: "2024-01-01T00:00:00Z",
-				UpdatedTimestamp: "2024-01-01T00:00:00Z",
-				UserID:           "test-user-id",
-			},
+			request:     req,
+			response:    w,
+			respAccount: respAccount,
 			mockAccountDetails: func() {
 				GenerateUUID = func() string {
 					return ""
@@ -267,8 +265,16 @@ func TestCreateAccount(t *testing.T) {
 					WillReturnRows()
 
 				mock.ExpectExec(regexp.QuoteMeta(accountModel.CreateAccountSQL)).
-					WithArgs("12345678", "10-10-10", name, accountType, currency, status, "12345678", updatedTimestamp)
-
+					WithArgs(
+						"12345678",
+						"10-10-10",
+						respAccount.Name,
+						respAccount.AccountType,
+						respAccount.Currency,
+						respAccount.Status,
+						respAccount.AccountID,
+						respAccount.UpdatedTimestamp,
+					)
 				mock.ExpectExec(regexp.QuoteMeta(accountModel.LinkUserToAccountSQL)).
 					WithArgs("test-user-id", "12345678")
 
