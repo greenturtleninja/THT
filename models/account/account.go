@@ -2,13 +2,10 @@ package accountModel
 
 import (
 	"database/sql"
-	"encoding/json"
-	"fmt"
-	"math/rand/v2"
 	"time"
-
-	"github.com/samborkent/uuidv7"
 )
+
+//TODO: Create an interface and set the db here, save passing the pointer around
 
 type Accounts struct {
 	Accounts []Account `json:"accounts"`
@@ -49,13 +46,13 @@ var GetAccountByUserIdQuery = `
 	FROM accounts acc
 	LEFT JOIN users_accounts usr USING (accountID)
 	LEFT JOIN transactions txn USING (userID)
-	WHERE txn.createdTimestamp IS NULL OR txn.createdTimestamp > date() AND usr.userID = $1
+	WHERE txn.createdTimestamp IS NULL OR txn.createdTimestamp > date() AND usr.userID = $1 AND acc.AccountNumber = $2
 	GROUP BY acc.accountID, acc.name, acc.accountNumber, acc.sortCode, acc.accountType, acc.balance, acc.currency,
   		acc.createdTimestamp, acc.updatedTimestamp, acc.status
 `
 
 func (a *Account) GetAccountByUserId(db *sql.DB) error {
-	row := db.QueryRow(GetAccountByUserIdQuery, a.UserID)
+	row := db.QueryRow(GetAccountByUserIdQuery, a.UserID, a.AccountNumber)
 
 	var currentBalance int64
 	var txnBalance int64
@@ -89,15 +86,15 @@ var GetAccountsQuery = `
 	FROM accounts acc
 	LEFT JOIN users_accounts usr USING (accountID)
 	LEFT JOIN transactions txn USING (userID)
-	WHERE txn.createdTimestamp IS NULL OR txn.createdTimestamp > date()
+	WHERE txn.createdTimestamp IS NULL OR txn.createdTimestamp > date() AND usr.userID = $1
 	GROUP BY acc.accountID, acc.name, acc.accountNumber, acc.sortCode, acc.accountType, acc.balance, acc.currency,
   		acc.createdTimestamp, acc.updatedTimestamp, acc.status
 `
 
-func GetAccounts(db *sql.DB) (Accounts, error) {
+func GetAccountsByUserId(db *sql.DB, UserID string) (Accounts, error) {
 	var accounts Accounts
 
-	rows, err := db.Query(GetAccountsQuery)
+	rows, err := db.Query(GetAccountsQuery, UserID)
 	if err != nil {
 		return accounts, err
 	}
@@ -137,39 +134,11 @@ func GetAccounts(db *sql.DB) (Accounts, error) {
 	return accounts, nil
 }
 
-func generateAccountNumber() string {
-	randNumber := rand.IntN(9999999)
-	return fmt.Sprintf("%08d", randNumber)
-}
-
-func generateSortCode() string {
-	return "10-10-10"
-}
-
 var CreateAccountSQL = `INSERT INTO accounts 
 (accountNumber, sortCode, name, accountType, currency, status, accountID, updatedTimestamp) VALUES 
 ($1, $2, $3, $4, $5, $6, $7, $8)`
 
 func (acc *Account) CreateAccount(db *sql.DB) error {
-	uniqueID := uuidv7.New()
-	accUUID := uniqueID.String()
-	acc.AccountID = accUUID
-	acc.AccountNumber = generateAccountNumber()
-	acc.SortCode = generateSortCode()
-	acc.Status = "active"
-	acc.Currency = "GBP"
-
-	for {
-		acc.AccountNumber = generateAccountNumber()
-		_, err := IsValidAccount(db, acc.AccountNumber, acc.SortCode)
-		if err != nil && err != sql.ErrNoRows {
-			return err
-		}
-		if err == sql.ErrNoRows {
-			break
-		}
-	}
-
 	acc.UpdatedTimestamp = time.Now().UTC().Format("2006-01-02 15:04:05")
 
 	_, err := db.Exec(
@@ -198,6 +167,18 @@ func (acc *Account) CreateAccount(db *sql.DB) error {
 	return nil
 }
 
+var LinkUserToAccountSQL = `INSERT INTO users_accounts (userID, accountID) VALUES ($1, $2)`
+
+func (acc Account) LinkUserToAccount(db *sql.DB) error {
+	_, err := db.Exec(
+		LinkUserToAccountSQL,
+		acc.UserID,
+		acc.AccountID,
+	)
+
+	return err
+}
+
 var AccountExitsSQL = `SELECT acc.accountID, usr_acc.userID, accountNumber, COALESCE(createdTimestamp, ''), COALESCE(updatedTimestamp, '') 
 FROM accounts acc 
 INNER JOIN users_accounts usr_acc USING (accountID)
@@ -215,10 +196,4 @@ func IsValidAccount(db *sql.DB, accountNumber, sortCode string) (ValidAccount, e
 	)
 
 	return validAccount, err
-}
-
-func (acc *Account) Response() string {
-	resp, _ := json.Marshal(acc)
-
-	return string(resp)
 }

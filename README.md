@@ -9,13 +9,12 @@ folder
 \api<br />
 - main.go -> entry point for the api<br />
 <br />
+\controller<br />
+-- \Account\User....
+    -- controller code responsible for fetching and returning data
 \models<br />
--- \user<br />
-    -- struct for user CRUD operations<br />
--- \account<br />
-    -- struct for account CRUD operations<br />
--- \transaction<br />
-    -- struct for transaction CRUD operations<br />
+-- \user\account\....<br />
+    -- model code for queryingthe data source and retuning the data object
 <br />
 \auth<br />
 -- \JWT<br />

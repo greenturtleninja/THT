@@ -70,18 +70,6 @@ func (user *User) GetUser(db *sql.DB) error {
 	return err
 }
 
-var LinkUserToAccountSQL = `INSERT INTO users_accounts (userID, accountID) VALUES ($1, $2)`
-
-func (usrToAcc *UsersToAccounts) LinkUserToAccount(db *sql.DB) error {
-	_, err := db.Exec(
-		LinkUserToAccountSQL,
-		usrToAcc.UserID,
-		usrToAcc.AccountID,
-	)
-
-	return err
-}
-
 func (user *User) UpdateUser() error {
 	return nil
 }

@@ -63,6 +63,14 @@ func PasswordHash(password string) string {
 	return passwordHash
 }
 
+func GetUserIdFromToken(e echo.Context) string {
+	token := e.Get("user").(*jwt.Token)
+	claims := token.Claims.(*JwtCustomClaims)
+	userIDFromToken := claims.UserID
+
+	return userIDFromToken
+}
+
 func (l *LoginRequest) Login(req echo.Context) error {
 	username := req.FormValue("username")
 	password := req.FormValue("password")

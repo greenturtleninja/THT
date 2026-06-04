@@ -1,31 +1,23 @@
-package UserController
+package userController
 
 import (
 	"database/sql"
 	"net/http"
 
-	authJwt "THT/eaglebank/auth/JWT"
 	userModel "THT/eaglebank/models/user"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 )
 
 type User struct {
-	DB     *sql.DB
-	UserID string
+	DB          *sql.DB
+	UserID      string
+	TokenUserID string
 }
 
 func (u *User) GetUser(e echo.Context) error {
 	userID := e.Param("userId")
-	userIDFromToken, err := GetUserIdFromToken(e)
-	if err != nil {
-		e.Logger().Error("error getting user ID from token", "err", err)
-		return e.JSON(http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
-	}
-	// login := claims.Subject
-
-	if userIDFromToken != userID {
+	if u.TokenUserID != userID {
 		return e.JSON(http.StatusForbidden, map[string]string{"error": "Forbidden"})
 	}
 
@@ -50,24 +42,10 @@ func (u *User) CreateUser(e echo.Context) error {
 		return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
-	userId, err := GetUserIdFromToken(e)
-	if err != nil {
-		e.Logger().Error("error getting user ID from token", "err", err)
-		return e.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorised"})
-	}
-
-	userMod.UserID = userId
+	userMod.UserID = u.TokenUserID
 	if err := userMod.CreateUser(u.DB); err != nil {
 		e.Logger().Error("error with creating user", "err", err)
 		return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create user"})
 	}
 	return e.JSON(http.StatusCreated, userMod.Response())
-}
-
-func GetUserIdFromToken(e echo.Context) (string, error) {
-	token := e.Get("user").(*jwt.Token)
-	claims := token.Claims.(*authJwt.JwtCustomClaims)
-	userIDFromToken := claims.UserID
-
-	return userIDFromToken, nil
 }

@@ -9,7 +9,8 @@ import (
 	"os"
 
 	authJwt "THT/eaglebank/auth/JWT"
-	UserController "THT/eaglebank/controllers/User"
+	accountController "THT/eaglebank/controllers/Account"
+	userController "THT/eaglebank/controllers/User"
 
 	"github.com/golang-jwt/jwt/v5"
 	echojwt "github.com/labstack/echo-jwt/v4"
@@ -126,25 +127,46 @@ func loginRoute(parent *echo.Group, db *sql.DB) {
 }
 
 func registerApiRoutes(parent *echo.Group, db *sql.DB) {
+	// return user details if you are the current user
+	// todo: or you are admin
 	parent.GET("/users/:userId", func(c echo.Context) error {
-		user := UserController.User{
-			DB:     db,
-			UserID: c.Param("userId"),
+		user := userController.User{
+			DB:          db,
+			UserID:      c.Param("userId"),
+			TokenUserID: authJwt.GetUserIdFromToken(c),
 		}
 		return user.GetUser(c)
 	})
 
 	parent.POST("/users", func(c echo.Context) error {
-		user := UserController.User{
-			DB: db,
+		user := userController.User{
+			DB:          db,
+			TokenUserID: authJwt.GetUserIdFromToken(c),
 		}
 
 		return user.CreateUser(c)
 	})
 
-	parent.POST("/accounts", func(c echo.Context) error {
-		return nil
+	parent.GET("/accounts/:accountId", func(c echo.Context) error {
+		account := accountController.Account{
+			DB:            db,
+			AccountNumber: c.Param("accountId"),
+			UserID:        authJwt.GetUserIdFromToken(c),
+		}
+		return account.GetAccount(c)
 	})
+	parent.POST("/accounts", func(c echo.Context) error {
+		account := accountController.Account{
+			UserID: authJwt.GetUserIdFromToken(c),
+			DB:     db,
+		}
+		if err := c.Bind(&account); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "incoorect details to create account"})
+		}
+
+		return account.CreateAccount(c)
+	})
+
 }
 
 func tools(parent *echo.Group) {
