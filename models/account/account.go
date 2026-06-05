@@ -23,6 +23,7 @@ type Account struct {
 	UpdatedTimestamp string  `json:"updatedTimestamp"`
 	Status           string  `json:"-"`
 	UserID           string  `json:"-"`
+	DB               *sql.DB
 }
 
 type ValidAccount struct {
@@ -51,8 +52,8 @@ var GetAccountByUserIdQuery = `
   		acc.createdTimestamp, acc.updatedTimestamp, acc.status
 `
 
-func (a *Account) GetAccountByUserId(db *sql.DB) error {
-	row := db.QueryRow(GetAccountByUserIdQuery, a.UserID, a.AccountNumber)
+func (a *Account) GetAccountByUserId() error {
+	row := a.DB.QueryRow(GetAccountByUserIdQuery, a.UserID, a.AccountNumber)
 
 	var currentBalance int64
 	var txnBalance int64
@@ -91,10 +92,10 @@ var GetAccountsQuery = `
   		acc.createdTimestamp, acc.updatedTimestamp, acc.status
 `
 
-func GetAccountsByUserId(db *sql.DB, UserID string) (Accounts, error) {
+func (a *Account) GetAccountsByUserId() (Accounts, error) {
 	var accounts Accounts
 
-	rows, err := db.Query(GetAccountsQuery, UserID)
+	rows, err := a.DB.Query(GetAccountsQuery, a.UserID)
 	if err != nil {
 		return accounts, err
 	}
@@ -138,10 +139,10 @@ var CreateAccountSQL = `INSERT INTO accounts
 (accountNumber, sortCode, name, accountType, currency, status, accountID, updatedTimestamp) VALUES 
 ($1, $2, $3, $4, $5, $6, $7, $8)`
 
-func (acc *Account) CreateAccount(db *sql.DB) error {
+func (acc *Account) CreateAccount() error {
 	acc.UpdatedTimestamp = time.Now().UTC().Format("2006-01-02 15:04:05")
 
-	_, err := db.Exec(
+	_, err := acc.DB.Exec(
 		CreateAccountSQL,
 		acc.AccountNumber,
 		acc.SortCode,
@@ -156,7 +157,7 @@ func (acc *Account) CreateAccount(db *sql.DB) error {
 		return err
 	}
 
-	validAccount, err := IsValidAccount(db, acc.AccountNumber, acc.SortCode)
+	validAccount, err := acc.IsValidAccount()
 	if err != nil {
 		return err
 	}
@@ -169,8 +170,8 @@ func (acc *Account) CreateAccount(db *sql.DB) error {
 
 var LinkUserToAccountSQL = `INSERT INTO users_accounts (userID, accountID) VALUES ($1, $2)`
 
-func (acc Account) LinkUserToAccount(db *sql.DB) error {
-	_, err := db.Exec(
+func (acc Account) LinkUserToAccount() error {
+	_, err := acc.DB.Exec(
 		LinkUserToAccountSQL,
 		acc.UserID,
 		acc.AccountID,
@@ -184,10 +185,10 @@ FROM accounts acc
 INNER JOIN users_accounts usr_acc USING (accountID)
 WHERE accountNumber = $1 AND sortCode = $2`
 
-func IsValidAccount(db *sql.DB, accountNumber, sortCode string) (ValidAccount, error) {
+func (acc *Account) IsValidAccount() (ValidAccount, error) {
 	var validAccount ValidAccount
 
-	err := db.QueryRow(AccountExitsSQL, accountNumber, sortCode).Scan(
+	err := acc.DB.QueryRow(AccountExitsSQL, acc.AccountNumber, acc.SortCode).Scan(
 		&validAccount.AccountID,
 		&validAccount.UserID,
 		&validAccount.Number,

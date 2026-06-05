@@ -18,15 +18,17 @@ type Account struct {
 	AccountName   string `json:"name"`
 	Type          string `json:"accountType"`
 	AccountNumber string
+	AccModel      accountModel.Account
 }
 
 func (a *Account) GetAccount(e echo.Context) error {
 	accountMod := accountModel.Account{
 		UserID:        a.UserID,
 		AccountNumber: a.AccountNumber,
+		DB:            a.DB,
 	}
 
-	if err := accountMod.GetAccountByUserId(a.DB); err != nil {
+	if err := accountMod.GetAccountByUserId(); err != nil {
 		e.Logger().Error("error getting account", "err", err)
 		return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get account"})
 	}
@@ -35,7 +37,11 @@ func (a *Account) GetAccount(e echo.Context) error {
 }
 
 func (a *Account) GetAccounts(e echo.Context) error {
-	accounts, err := accountModel.GetAccountsByUserId(a.DB, a.UserID)
+	accountModel := accountModel.Account{
+		UserID: a.UserID,
+		DB:     a.DB,
+	}
+	accounts, err := accountModel.GetAccountsByUserId()
 	if err != nil {
 		e.Logger().Error("error getting accounts", "err", err)
 		return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get accounts"})
@@ -63,6 +69,7 @@ func (a *Account) CreateAccount(e echo.Context) error {
 		UserID:      a.UserID,
 		AccountType: a.Type,
 		Name:        a.AccountName,
+		DB:          a.DB,
 	}
 
 	newAccount.AccountID = GenerateUUID()
@@ -73,7 +80,7 @@ func (a *Account) CreateAccount(e echo.Context) error {
 
 	for {
 		newAccount.AccountNumber = GenerateAccountNumber()
-		_, err := accountModel.IsValidAccount(a.DB, newAccount.AccountNumber, newAccount.SortCode)
+		_, err := newAccount.IsValidAccount()
 		if err != nil && err != sql.ErrNoRows {
 			return err
 		}
@@ -83,13 +90,13 @@ func (a *Account) CreateAccount(e echo.Context) error {
 	}
 
 	//CreateAccount
-	if err := newAccount.CreateAccount(a.DB); err != nil {
+	if err := newAccount.CreateAccount(); err != nil {
 		e.Logger().Error("error creating account", "err", err)
 		return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to creating account"})
 	}
 
 	//LinkAccount
-	if err := newAccount.LinkUserToAccount(a.DB); err != nil {
+	if err := newAccount.LinkUserToAccount(); err != nil {
 		e.Logger().Error("error linking account to user", "err", err)
 		return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to linking account to user"})
 	}

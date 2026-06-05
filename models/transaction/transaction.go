@@ -83,7 +83,12 @@ VALUES ($1, $2, $3, $4, $5, $6)`
 // checks if the passed account id is valid.
 // Inserts the transaction details into the database
 func (txn *Transaction) CreateTransaction(db *sql.DB) error {
-	validAccount, err := accountModel.IsValidAccount(db, txn.AccountNumber, txn.SortCode)
+	accountModel := accountModel.Account{
+		AccountNumber: txn.AccountNumber,
+		SortCode:      txn.SortCode,
+		DB:            db,
+	}
+	validAccount, err := accountModel.IsValidAccount()
 	if err != nil {
 		return err
 	}
